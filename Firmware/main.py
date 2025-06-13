@@ -7,8 +7,8 @@ from ssd1306 import SSD1306_I2C
 import math
 
 # Configuração do OLED
-i2c = SoftI2C(scl=Pin(15), sda=Pin(14))
-oled = SSD1306_I2C(128, 64, i2c)
+# i2c = SoftI2C(scl=Pin(15), sda=Pin(14))
+# oled = SSD1306_I2C(128, 64, i2c)
 
 joystick_button = Pin(22, Pin.IN, Pin.PULL_UP) 
 #______________________________________________
@@ -42,10 +42,11 @@ def map_value(value, in_min, in_max, out_min, out_max):
 
 #_______________________________________________
 def update_oled(lines):
-    oled.fill(0)
-    for i, line in enumerate(lines):
-        oled.text(line, 0, i * 8)
-    oled.show()
+    return
+#    oled.fill(0)
+#    for i, line in enumerate(lines):
+#        oled.text(line, 0, i * 8)
+#    oled.show()
 
 
 # Configurando o LED RGB
@@ -691,42 +692,47 @@ indice_cor = 0  # Índice da cor atual na lista de cores
 
 
 # Inciando o Bluetooth
-uart = UART(0, baudrate=38400)
-uart.init(38400, bits=8, parity=None, stop=1)
-
+# Configuração do UART para HC-05
+uart = UART(0, baudrate=9600)
+uart.init(9600, bits=8, parity=None, stop=1)
 
 def process_command(cmd):
+    """Processa os comandos recebidos"""
     try:
+        # Remove caracteres extras e executa
         cmd = cmd.strip()
         if cmd:
-            exec(cmd, globals(), locals())
+            exec(cmd)
             uart.write("OK\r\n")
     except Exception as e:
-        uart.write("Erro: {}\r\n".format(str(e)))
+        uart.write(f"Erro: {str(e)}\r\n")
 
-
-def bluetooth_repl_thread():
-    buffer = ''
+def bluetooth_repl():
+    """Loop principal"""
+    print("Sistema iniciado")
     uart.write("Sistema iniciado\r\n")
-    print("Entrei!!")
+    buffer = ''
+
     while True:
         if uart.any():
             try:
                 char = uart.read(1).decode('utf-8')
+
+                # Se encontrar uma nova linha, processa o comando
                 if char in ('\n', '\r'):
                     if buffer.strip():
                         process_command(buffer)
                     buffer = ''
                 else:
                     buffer += char
-            except Exception as e:
-                uart.write("Erro: {}\r\n".format(str(e)))
-                buffer = ''
-        else: break
 
+            except Exception as e:
+                uart.write(f"Erro: {str(e)}\r\n")
+                buffer = ''
+
+bluetooth_repl()
 
 while True:
-    bluetooth_repl_thread()
     # Primeira parte: Seta esquerda e espera pelo botão A
     seta_Esquerda()
     time.sleep(.5)
@@ -737,9 +743,9 @@ while True:
     clear_all()
     time.sleep(.3)
     seta_Esquerda()
-    
 
-    
+
+
     messages = [
     "           ",
     "           ",
@@ -751,14 +757,14 @@ while True:
     "           "
     ]
     update_oled(messages)
-    
+
     # Aguarde até o Botão A ser pressionado
     while button_a.value():
         time.sleep(0.1)  # Adicione um delay para debounce
-    
+
     clear_all()
-    xplosion()
-    
+    # xplosion()
+
     # Segunda parte: Seta direita e espera pelo botão B
     seta_Direita()
     time.sleep(.5)
@@ -769,7 +775,7 @@ while True:
     clear_all()
     time.sleep(.3)
     seta_Direita()
-       
+
 
     messages = [
     "           ",
@@ -782,46 +788,16 @@ while True:
     "           "
     ]
     update_oled(messages)
-    
+
     # Aguarde até o Botão B ser pressionado
     while button_b.value():
         time.sleep(0.1)  # Adicione um delay para debounce
-    
+
     clear_all()
-    xplosion()
-    
+    # xplosion()
+
     update_oled("             ")
     update_oled("Mova Joystick")
-    
-    messages = [
-    "           ",
-    " Mova Joystick ",
-    "           ",
-    "           ",
-    "           ",
-    "           ",
-    "           ",
-    "           ",
-    ]
-    update_oled(messages)
-    
-    time.sleep(1)   
-    colors = [
-        GREEN, GREEN, GREEN, GREEN, BLACK,
-        BLACK, GREEN, GREEN, BLACK, BLACK,
-        BLACK, BLACK,  GREEN, GREEN, BLACK,
-        BLACK, GREEN, BLACK, GREEN, BLACK,
-        GREEN, BLACK, BLACK, GREEN, BLACK
-    ]
-    
-    
-    # Atribuindo as cores à matriz np
-    for i, color in enumerate(colors):
-        np[i] = color
-    
-    np.write()
-    time.sleep(2)
-    
 
     messages = [
     "           ",
@@ -834,12 +810,42 @@ while True:
     "           ",
     ]
     update_oled(messages)
-    
+
+    time.sleep(1)
+    colors = [
+        GREEN, GREEN, GREEN, GREEN, BLACK,
+        BLACK, GREEN, GREEN, BLACK, BLACK,
+        BLACK, BLACK,  GREEN, GREEN, BLACK,
+        BLACK, GREEN, BLACK, GREEN, BLACK,
+        GREEN, BLACK, BLACK, GREEN, BLACK
+    ]
+
+
+    # Atribuindo as cores à matriz np
+    for i, color in enumerate(colors):
+        np[i] = color
+
+    np.write()
+    time.sleep(2)
+
+
+    messages = [
+    "           ",
+    " Mova Joystick ",
+    "           ",
+    "           ",
+    "           ",
+    "           ",
+    "           ",
+    "           ",
+    ]
+    update_oled(messages)
+
     # Agora entre no modo de controle do joystick
     while True:
         vrx_value = adc_vrx.read_u16()
         vry_value = adc_vry.read_u16()
-    
+
         messages = [
             "           ",
             "           ",
@@ -851,45 +857,45 @@ while True:
             "    SAIR   ",
         ]
         update_oled(messages)
-    
+
         offsetx = 0
         offsety = 400
         row = map_value(vrx_value - offsetx, 240, 65279, 0, 4)
         col = map_value(vry_value - offsety, 65278, 240, 0, 4)
-        
+
         for i in range(NUM_LEDS):
             np[i] = (0, 0, 0)
-        
+
         led_index = LED_MATRIX[row][col]
         #beep(50, 4000)  # Toca um beep rápido
         np[led_index] = cores[indice_cor]  # Use a cor atual
         np.write()
-        
+
         # Verifica se o botão do joystick está pressionado
         if not joystick_button.value():
             indice_cor = (indice_cor + 1) % len(cores)  # Atualiza o índice da cor
             star_trek_beep()
             print("Botão do joystick pressionado. Mudando a cor.")
-        
+
         # Verifica se o botão B está pressionado
         if not button_b.value():
             print("Botão B pressionado. Saindo do modo de controle do joystick.")
             update_oled("                ")
             break  # Sai do loop se o botão B estiver pressionado
-        
+
         time.sleep(0.1)
 
-    
-    
-   
+
+
+
 
     # Aguarde até que o botão B seja liberado
     while not button_b.value():
         time.sleep(0.1)
-       
+
     update_oled("             ")
     update_oled("Escutando")
-    
+
     messages = [
     "  Escutando ",
     "           ",
@@ -901,11 +907,11 @@ while True:
     "    SAIR     ",
     ]
     update_oled(messages)
-    
-      
 
-    # Modo VU Meter 
-    while True:  
+
+
+    # Modo VU Meter
+    while True:
         if button_b.value():
             adc_value = adc.read_u16()  # Lendo o valor do ADC do microfone
             vu_meter(adc_value)  # Atualizando o VU meter com base no valor do ADC
@@ -915,7 +921,7 @@ while True:
             break  # Sai do loop se o botão B estiver pressionado
             update_oled("             ")
             update_oled(" OLA EHUMANO")
-                
+
             messages = [
             "           ",
             "           ",
@@ -927,7 +933,7 @@ while True:
             "           ",
             ]
             update_oled(messages)
-    
-            
+
+
 
 time.sleep(0.1)
