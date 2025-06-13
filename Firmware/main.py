@@ -2,7 +2,7 @@ from machine import PWM, Pin
 import neopixel
 import time
 import random
-from machine import Pin, SoftI2C, ADC
+from machine import Pin, SoftI2C, ADC, UART
 from ssd1306 import SSD1306_I2C
 import math
 
@@ -689,7 +689,44 @@ clear_all()
 cores = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]  # vermelho, verde, azul
 indice_cor = 0  # Índice da cor atual na lista de cores
 
+
+# Inciando o Bluetooth
+uart = UART(0, baudrate=38400)
+uart.init(38400, bits=8, parity=None, stop=1)
+
+
+def process_command(cmd):
+    try:
+        cmd = cmd.strip()
+        if cmd:
+            exec(cmd, globals(), locals())
+            uart.write("OK\r\n")
+    except Exception as e:
+        uart.write("Erro: {}\r\n".format(str(e)))
+
+
+def bluetooth_repl_thread():
+    buffer = ''
+    uart.write("Sistema iniciado\r\n")
+    print("Entrei!!")
+    while True:
+        if uart.any():
+            try:
+                char = uart.read(1).decode('utf-8')
+                if char in ('\n', '\r'):
+                    if buffer.strip():
+                        process_command(buffer)
+                    buffer = ''
+                else:
+                    buffer += char
+            except Exception as e:
+                uart.write("Erro: {}\r\n".format(str(e)))
+                buffer = ''
+        else: break
+
+
 while True:
+    bluetooth_repl_thread()
     # Primeira parte: Seta esquerda e espera pelo botão A
     seta_Esquerda()
     time.sleep(.5)
